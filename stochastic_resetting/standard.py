@@ -15,6 +15,7 @@ def figure_generation_one(coords, f1, f2, reset=None):
     fig, ax = plt.subplots(ncols=1, nrows=1, figsize = (f1, f2))
     min_val = np.min(coords[1])
     max_val = np.max(coords[1])
+    ax.set_xlim([0, coords[0][-1]])
     if min_val >= 0:
         ax.set_ylim([-max_val, max_val])
     elif max_val <= 0:
