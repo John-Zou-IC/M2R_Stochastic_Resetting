@@ -22,12 +22,12 @@ def figure_generation_one(coords, f1, f2, reset=None):
     reset (None or float): the reset position of the stochastic process
     if a reset is present.
     '''
-    fig, ax = plt.subplots(ncols=1, nrows=1, figsize = (f1, f2))
+    fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(f1, f2))
     ax.set_xlim([0, coords[0][-1]])
     min_val = np.min(coords[1])
     max_val = np.max(coords[1])
 
-    #Setting ylim
+    # Setting ylim
     if min_val >= 0:
         ax.set_ylim([-max_val, max_val])
     elif max_val <= 0:
@@ -37,7 +37,7 @@ def figure_generation_one(coords, f1, f2, reset=None):
         ax.set_ylim([-val, val])
     reset_val = coords[1][0]
 
-    #Reset Line
+    # Reset Line
     if reset is not None:
         reset_val = reset
     ax.hlines(reset_val, xmin=0, xmax=coords[0][-1],
@@ -56,7 +56,11 @@ class StochasticProcess(ABC):
         pass
 
     @abstractmethod
-    def simulate(self, t, dt):
+    def simulate(self):
+        pass
+
+    @abstractmethod
+    def update_step(self):
         pass
 
 
@@ -73,6 +77,14 @@ class SingleDiffusionProcess(StochasticProcess):
         self.D = D
 
     def update_step(self, pos, dt):
+        '''
+        Updates the position of the particle based on stochastic rules:
+        x(t + dt) = x(t) + sqrt(dt) * N
+        for N an observation from a normal random variable with mean 0
+        and variance 2*D.
+        ---
+        pos (float): Position of the particle.
+        dt (float): Small change in time used for simulation.'''
         return pos + normal_obs(0, 2*self.D) * np.sqrt(dt)
 
     def simulate(self, t, dt):
@@ -90,7 +102,6 @@ class SingleDiffusionProcess(StochasticProcess):
         pos_list = [np.float64(pos)]
         time = np.arange(0, t, dt)
         for step in time[1:]:
-            #Stochastic rules
             pos = self.update_step(pos, dt)
             pos_list.append(pos)
         pos_list = np.array(pos_list)
@@ -169,6 +180,21 @@ class SingleDiffusionProcessConstantR(StochasticProcess):
         self.D = D
         self.r = r
 
+    def update_step(self, pos, dt):
+        '''
+        Updates the position of the particle based on stochastic rules:
+        x(t + dt) = xr  with probability r*dt
+        x(t + dt) = x(t) + sqrt(dt) * N  with probability 1-r*dt
+        for N an observation from a normal random variable with mean 0
+        and variance 2*D.
+        ---
+        pos (float): Position of the particle.
+        dt (float): Small change in time used for simulation.'''
+        if np.random.random() < self.r*dt:
+            return 'reset'
+        else:
+            return normal_obs(0, 2*self.D) * np.sqrt(dt)
+
     def simulate(self, t, dt):
         '''
         Simulates the diffusion process with resetting over a fixed period 
@@ -187,13 +213,11 @@ class SingleDiffusionProcessConstantR(StochasticProcess):
         reset_time = list()
         time = np.arange(0, t, dt)
         for step in time[1:]:
-            #Stochastic rules
-            if np.random.random() < self.r*dt:
-                reset_pos.append(pos)
-                pos = self.xr
+            pos = self.update_step(pos, dt)
+            if pos == 'reset':
+                reset_pos.append(pos_list[-1])
                 reset_time.append(step)
-            else:
-                pos += normal_obs(0, 2*self.D) * np.sqrt(dt)
+                pos = self.xr
             pos_list.append(pos)
         return (time, pos_list, reset_time, reset_pos)
 
@@ -212,13 +236,58 @@ class SingleDiffusionProcessConstantR(StochasticProcess):
         fig, ax = figure_generation_one(coords, f1, f2, reset=self.xr)
         ax.plot(coords[0], coords[1])
         if coords[2]:
-            #Adding reset lines
+            # Adding reset lines
             for index in range(len(coords[2])):
-                ax.vlines(x = coords[2][index],
-                           ymin=min(coords[3][index], self.xr),
-                           ymax=max(coords[3][index], self.xr),
-                           color='r')
+                ax.vlines(x=coords[2][index],
+                          ymin=min(coords[3][index], self.xr),
+                          ymax=max(coords[3][index], self.xr),
+                          color='r')
+
+    def first_passage_simulation_constant(self, target, dt=0.1, tmax=100):
+        '''
+        Returns the first passage time of hitting the target based on
+        a simulation of the single particle diffusion process.
+        ---
+        target (float): Position of target to be reached.
+        dt (float): Small change in time used for simulation.
+        tmax (float): Maximum time of simulation.
+        '''
+        time = 0
+        pos = self.x0
+        cond = self.x0
+        while time < tmax:
+            pos = self.update_step(pos, dt)
+            time += dt
+            if pos == 'reset':
+                cond = self.xr
+                pos = self.xr
+            if np.sign(cond-target) != np.sign(pos-target):
+                return time
+        return None
+
+    def mfpt_constant(self, target, iter=100, dt=0.1, tmax=100):
+        '''
+        Returns the sample mean of the first passage time of target
+        based on a number of simulations of the single particle
+        diffusion process with resetting.
+        ---
+        target (float): Position of target to be reached.
+        iter (int): Number of iterations for simulation.
+        dt (float): Small change in time used for simulation.
+        tmax (float): Maximum time of simulation.
+        '''
+        count = 0
+        total = 0
+        for _ in range(iter):
+            time = self.first_passage_simulation_constant(target, dt, tmax)
+            if time is not None:
+                count += 1
+                total += time
+        if not count:
+            raise FirstPassageError('Target was never reached')
+        return total/count
 
 
 class FirstPassageError(ValueError):
+    '''Defining an error for first passage time.'''
     pass
