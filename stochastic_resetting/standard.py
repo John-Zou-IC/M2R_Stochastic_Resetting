@@ -3,12 +3,16 @@ import matplotlib.pyplot as plt
 from abc import ABC, abstractmethod
 
 
-def plot_simulation(process, t, dt, f1=3.5, f2=2.5):
-    if not isinstance(process, StochasticProcess):
-        raise TypeError("Can not plot something which isn't a stochastic process")
-    coords = process.simulate(t, dt)
-    fig, ax = plt.subplots(1, 1, figsize = (f1, f2))
-    ax.plot(coords[0], coords[1])
+def normal_obs(mean, variance):
+    return np.random.normal(mean, np.sqrt(variance))
+
+
+def poisson_obs(r):
+    return np.random.poisson(r)
+
+
+def figure_generation_one(coords, f1, f2):
+    fig, ax = plt.subplots(ncols=1, nrows=1, figsize = (f1, f2))
     min_val = np.min(coords[1])
     max_val = np.max(coords[1])
     if min_val >= 0:
@@ -18,6 +22,7 @@ def plot_simulation(process, t, dt, f1=3.5, f2=2.5):
     else:
         val = np.max([-min_val, max_val])
         ax.set_ylim([-val, val])
+    return fig, ax
 
 
 class StochasticProcess(ABC):
@@ -36,15 +41,54 @@ class SingleDiffusionProcess(StochasticProcess):
         self.x0 = x0
         self.D = D
 
-    def normal_obs(self):
-        return np.random.normal(loc=0, scale=np.sqrt(2*self.D))
 
     def simulate(self, t, dt):
         pos = self.x0
         pos_list = [np.float64(pos)]
         time = np.arange(0, t, dt)
         for step in time[1:]:
-            pos += self.normal_obs() * np.sqrt(dt)
+            pos += normal_obs(0, 2*self.D) * np.sqrt(dt)
             pos_list.append(pos)
         pos_list = np.array(pos_list)
         return (time, pos_list)
+
+    def plot_simulation(self, t, dt, f1=3.5, f2=2.5):
+        coords = self.simulate(t, dt)
+        fig, ax = figure_generation_one(coords, f1, f2)
+        ax.plot(coords[0], coords[1])
+
+
+class SingleDiffusionProcessMarkovR(StochasticProcess):
+
+    def __init__(self, x0, xr, D, r):
+        self.x0 = x0
+        self.xr = xr
+        self.D = D
+        self.r = r
+
+    def simulate(self, t, dt):
+        pos = self.x0
+        pos_list = [np.float64(pos)]
+        reset_pos = list()
+        reset_time = list()
+        time = np.arange(0, t, dt)
+        for step in time[1:]:
+            if np.random.random() < self.r*dt:
+                reset_pos.append(pos)
+                pos = self.xr
+                reset_time.append(step)
+            else:
+                pos += normal_obs(0, 2*self.D) * np.sqrt(dt)
+            pos_list.append(pos)
+        return (time, pos_list, reset_time, reset_pos)
+
+    def plot_simulation(self, t, dt, f1=3.5, f2=2.5):
+        coords = self.simulate(t, dt)
+        fig, ax = figure_generation_one(coords, f1, f2)
+        ax.plot(coords[0], coords[1])
+        if coords[2]:
+            for index in range(len(coords[2])):
+                ax.vlines(x = coords[2][index],
+                           ymin=min(coords[3][index], self.xr),
+                           ymax=max(coords[3][index], self.xr),
+                           color='r')
