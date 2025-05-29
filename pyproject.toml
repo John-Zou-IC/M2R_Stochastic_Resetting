@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "m2r_group_5_project"
 version = "0.1"
-dependencies = ["numpy"]
+dependencies = ["numpy", "matplotlib"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["stochastic_resetting"]
