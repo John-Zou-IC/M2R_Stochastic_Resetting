@@ -11,7 +11,7 @@ def poisson_obs(r):
     return np.random.poisson(r)
 
 
-def figure_generation_one(coords, f1, f2):
+def figure_generation_one(coords, f1, f2, reset=None):
     fig, ax = plt.subplots(ncols=1, nrows=1, figsize = (f1, f2))
     min_val = np.min(coords[1])
     max_val = np.max(coords[1])
@@ -22,6 +22,12 @@ def figure_generation_one(coords, f1, f2):
     else:
         val = np.max([-min_val, max_val])
         ax.set_ylim([-val, val])
+    reset_val = coords[1][0]
+    if reset is not None:
+        reset_val = reset
+    ax.hlines(reset_val, xmin=0, xmax=coords[0][-1],
+              linestyle='dashed',
+              color='green')
     return fig, ax
 
 
@@ -84,7 +90,7 @@ class SingleDiffusionProcessMarkovR(StochasticProcess):
 
     def plot_simulation(self, t, dt, f1=3.5, f2=2.5):
         coords = self.simulate(t, dt)
-        fig, ax = figure_generation_one(coords, f1, f2)
+        fig, ax = figure_generation_one(coords, f1, f2, reset=self.xr)
         ax.plot(coords[0], coords[1])
         if coords[2]:
             for index in range(len(coords[2])):
