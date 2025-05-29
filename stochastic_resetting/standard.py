@@ -72,6 +72,8 @@ class SingleDiffusionProcess(StochasticProcess):
         self.x0 = x0
         self.D = D
 
+    def update_step(self, pos, dt):
+        return pos + normal_obs(0, 2*self.D) * np.sqrt(dt)
 
     def simulate(self, t, dt):
         '''
@@ -89,7 +91,7 @@ class SingleDiffusionProcess(StochasticProcess):
         time = np.arange(0, t, dt)
         for step in time[1:]:
             #Stochastic rules
-            pos += normal_obs(0, 2*self.D) * np.sqrt(dt)
+            pos = self.update_step(pos, dt)
             pos_list.append(pos)
         pos_list = np.array(pos_list)
         return (time, pos_list)
@@ -107,6 +109,48 @@ class SingleDiffusionProcess(StochasticProcess):
         coords = self.simulate(t, dt)
         fig, ax = figure_generation_one(coords, f1, f2)
         ax.plot(coords[0], coords[1])
+
+    def first_passage_simulation_constant(self, target, dt=0.1, tmax=100):
+        '''
+        Returns the first passage time of hitting the target based on
+        a simulation of the single particle diffusion process.
+        ---
+        target (float): Position of target to be reached.
+        dt (float): Small change in time used for simulation.
+        tmax (float): Maximum time of simulation.
+        '''
+        if target == self.x0:
+            raise ValueError("Target at initial position")
+        pos = self.x0
+        time = 0
+        while time < tmax:
+            pos = self.update_step(pos, dt)
+            time += dt
+            if np.sign(self.x0-target) != np.sign(pos-target):
+                return time
+        return None
+
+    def mfps_constant(self, target, iter=100, dt=0.1, tmax=100):
+        '''
+        Returns the sample mean of the first passage time of target
+        based on a number of simulations of the single particle
+        diffusion process.
+        ---
+        target (float): Position of target to be reached.
+        iter (int): Number of iterations for simulation.
+        dt (float): Small change in time used for simulation.
+        tmax (float): Maximum time of simulation.
+        '''
+        count = 0
+        total = 0
+        for _ in range(iter):
+            time = self.first_passage_simulation_constant(target, dt, tmax)
+            if time is not None:
+                count += 1
+                total += time
+        if not count:
+            raise FirstPassageError('Target was never reached')
+        return total/count
 
 
 class SingleDiffusionProcessConstantR(StochasticProcess):
@@ -143,6 +187,7 @@ class SingleDiffusionProcessConstantR(StochasticProcess):
         reset_time = list()
         time = np.arange(0, t, dt)
         for step in time[1:]:
+            #Stochastic rules
             if np.random.random() < self.r*dt:
                 reset_pos.append(pos)
                 pos = self.xr
@@ -167,8 +212,13 @@ class SingleDiffusionProcessConstantR(StochasticProcess):
         fig, ax = figure_generation_one(coords, f1, f2, reset=self.xr)
         ax.plot(coords[0], coords[1])
         if coords[2]:
+            #Adding reset lines
             for index in range(len(coords[2])):
                 ax.vlines(x = coords[2][index],
                            ymin=min(coords[3][index], self.xr),
                            ymax=max(coords[3][index], self.xr),
                            color='r')
+
+
+class FirstPassageError(ValueError):
+    pass
