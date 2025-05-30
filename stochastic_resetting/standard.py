@@ -1,49 +1,7 @@
 import numpy as np
-import matplotlib.pyplot as plt
+import types
 from abc import ABC, abstractmethod
-
-
-def normal_obs(mean, variance):
-    '''Returns a single observation from a normal random variable with
-    mean and variance provided.'''
-    return np.random.normal(mean, np.sqrt(variance))
-
-
-def figure_generation_one(coords, f1, f2, reset=None):
-    '''
-    Generates a figure for plotting the stochastic process.
-    ---
-    coords (tuple of numpy arrays): coords[0] and coords[1] must consist 
-    of coordinatesb to be plotted. This is used for setting the xlim and ylim.
-
-    f1 (float): the length of the figure.
-    f2 (float): the height of the figure.
-
-    reset (None or float): the reset position of the stochastic process
-    if a reset is present.
-    '''
-    fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(f1, f2))
-    ax.set_xlim([0, coords[0][-1]])
-    min_val = np.min(coords[1])
-    max_val = np.max(coords[1])
-
-    # Setting ylim
-    if min_val >= 0:
-        ax.set_ylim([-max_val, max_val])
-    elif max_val <= 0:
-        ax.set_ylim([min_val, -min_val])
-    else:
-        val = np.max([-min_val, max_val])
-        ax.set_ylim([-val, val])
-    reset_val = coords[1][0]
-
-    # Reset Line
-    if reset is not None:
-        reset_val = reset
-    ax.hlines(reset_val, xmin=0, xmax=coords[0][-1],
-              linestyle='dashed',
-              color='green')
-    return fig, ax
+from .__init__ import figure_generation_one, normal_obs
 
 
 class StochasticProcess(ABC):
@@ -62,6 +20,12 @@ class StochasticProcess(ABC):
     @abstractmethod
     def update_step(self):
         pass
+
+
+class StochasticResetting(StochasticProcess):
+
+    def __init__(self):
+        super().__init__()
 
 
 class SingleDiffusionProcess(StochasticProcess):
@@ -164,7 +128,7 @@ class SingleDiffusionProcess(StochasticProcess):
         return total/count
 
 
-class SingleDiffusionProcessConstantR(StochasticProcess):
+class SingleDiffusionProcessConstantR(StochasticResetting):
     '''
     Defines a single particle diffusion process with poissonian resetting.
     ---
@@ -193,11 +157,11 @@ class SingleDiffusionProcessConstantR(StochasticProcess):
         if np.random.random() < self.r*dt:
             return 'reset'
         else:
-            return normal_obs(0, 2*self.D) * np.sqrt(dt)
+            return pos + normal_obs(0, 2*self.D) * np.sqrt(dt)
 
     def simulate(self, t, dt):
         '''
-        Simulates the diffusion process with resetting over a fixed period 
+        Simulates the diffusion process with resetting over a fixed period
         of time using the stochastic rules:
         x(t + dt) = xr  with probability r*dt
         x(t + dt) = x(t) + sqrt(dt) * N  with probability 1-r*dt
@@ -291,3 +255,51 @@ class SingleDiffusionProcessConstantR(StochasticProcess):
 class FirstPassageError(ValueError):
     '''Defining an error for first passage time.'''
     pass
+
+
+class SingleDiffusionProcessResetting(StochasticResetting):
+
+    def __init__(self, x0, xr, D, r):
+        self.x0 = x0
+        self.xr = xr
+        self.D = D
+        self.r = r
+        if not isinstance(r, types.FunctionType):
+            raise TypeError("r inputed must be a function." +
+                            "This can be a constant function.")
+
+    def update_step(self, pos, t_reset, dt):
+        if np.random.random() < self.r(t_reset)*dt:
+            return 'reset'
+        else:
+            return pos + normal_obs(0, 2*self.D) * np.sqrt(dt)
+
+    def simulate(self, t, dt):
+        pos = self.x0
+        t_reset = 0
+        pos_list = [pos]
+        time = np.arange(0, t, dt)
+        reset_pos = list()
+        reset_time = list()
+        for _ in time[1:]:
+            pos = self.update_step(pos, t_reset, dt)
+            t_reset += dt
+            if pos == 'reset':
+                reset_pos.append(pos_list[-1])
+                reset_time.append(_)
+                t_reset = 0
+                pos = self.xr
+            pos_list.append(pos)
+        return (time, pos_list, reset_time, reset_pos)
+
+    def plot_simulation(self, t, dt, f1=3.5, f2=2.5):
+        coords = self.simulate(t, dt)
+        fig, ax = figure_generation_one(coords, f1, f2, reset=self.xr)
+        ax.plot(coords[0], coords[1])
+        if coords[2]:
+            # Adding reset lines
+            for index in range(len(coords[2])):
+                ax.vlines(x=coords[2][index],
+                          ymin=min(coords[3][index], self.xr),
+                          ymax=max(coords[3][index], self.xr),
+                          color='r')
