@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import types
 from abc import ABC, abstractmethod
 from .__init__ import figure_generation_one, normal_obs
@@ -209,6 +210,17 @@ class SingleDiffusionProcessConstantR(StochasticResetting):
                           ymax=max(coords[3][index], self.xr),
                           color='r')
 
+    def NESS(self, n, t, dt):
+        vals = np.zeros(n)
+        for _ in range(n):
+            vals[_] = self.simulate(t, dt)[1][-1]
+        return vals
+
+    def NESS_Plot(self, n, t, dt, f1=3.5, f2=2.5, bins=20):
+        vals = self.NESS(n, t, dt)
+        fig, ax = plt.subplots(1, 1, figsize=(f1, f2))
+        ax.hist(vals, bins=bins, density=True)
+
     def first_passage_simulation_constant(self, target, dt=0.1, tmax=100):
         '''
         Returns the first passage time of hitting the target based on
@@ -350,7 +362,7 @@ class SingleDiffusionProcessResetting(StochasticResetting):
     def first_passage_simulation_constant(self, target, dt=0.1, tmax=100):
         '''
         Returns the first passage time of hitting the target based on
-        a simulation of the single particle diffusion process with 
+        a simulation of the single particle diffusion process with
         non-poissonian but markovian resetting.
         ---
         target (float): Position of target to be reached.

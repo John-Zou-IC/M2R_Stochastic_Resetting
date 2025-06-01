@@ -2,10 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def normal_obs(mean, variance):
+def normal_obs(mean, variance, n=1):
     '''Returns a single observation from a normal random variable with
     mean and variance provided.'''
-    return np.random.normal(mean, np.sqrt(variance))
+    return np.random.normal(mean, np.sqrt(variance), n)
 
 
 def figure_generation_one(coords, f1, f2, reset=None):
