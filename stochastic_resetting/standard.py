@@ -211,9 +211,14 @@ class SingleDiffusionProcessConstantR(StochasticResetting):
                           color='r')
 
     def NESS(self, n, t, dt):
-        vals = np.zeros(n)
-        for _ in range(n):
-            vals[_] = self.simulate(t, dt)[1][-1]
+        vals = np.full(n, self.x0)
+        # Simulate n steps
+        time = np.arange(0, t, dt)
+        for _ in time[1:]:
+            cond_vec = np.random.random(n) < self.r * dt
+            vals[cond_vec] = self.xr
+            vals[np.invert(cond_vec)] = normal_obs(0, 2*self.D,
+                                                   np.count_nonzero(cond_vec))
         return vals
 
     def NESS_Plot(self, n, t, dt, f1=3.5, f2=2.5, bins=20):
