@@ -8,6 +8,10 @@ def normal_obs(mean, variance, n=1):
     return np.random.normal(mean, np.sqrt(variance), n)
 
 
+def exp_obs(r, n=1):
+    return np.random.exponential(1/r, n)
+
+
 def figure_generation_one(coords, f1, f2, reset=None):
     '''
     Generates a figure for plotting the stochastic process.

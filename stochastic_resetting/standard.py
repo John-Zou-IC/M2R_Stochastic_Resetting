@@ -23,12 +23,6 @@ class StochasticProcess(ABC):
         pass
 
 
-class StochasticResetting(StochasticProcess):
-
-    def __init__(self):
-        super().__init__()
-
-
 class SingleDiffusionProcess(StochasticProcess):
     '''
     This defines a single particle diffusion process.
@@ -130,7 +124,7 @@ class SingleDiffusionProcess(StochasticProcess):
         return total/count
 
 
-class SingleDiffusionProcessConstantR(StochasticResetting):
+class SingleDiffusionProcessConstantR(StochasticProcess):
     '''
     Defines a single particle diffusion process with poissonian resetting.
     ---
@@ -277,7 +271,7 @@ class FirstPassageError(ValueError):
     pass
 
 
-class SingleDiffusionProcessResetting(StochasticResetting):
+class SingleDiffusionProcessResetting(StochasticProcess):
     '''
     Defines a single particle diffusion process with markovian
     but non-poissonian resetting.
