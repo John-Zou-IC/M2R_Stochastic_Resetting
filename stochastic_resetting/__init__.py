@@ -2,13 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def normal_obs(mean, variance, n=1):
+def normal_obs(mean, variance, n=None):
     '''Returns a single observation from a normal random variable with
     mean and variance provided.'''
     return np.random.normal(mean, np.sqrt(variance), n)
 
 
-def exp_obs(r, n=1):
+def exp_obs(r, n=None):
     return np.random.exponential(1/r, n)
 
 
