@@ -365,6 +365,9 @@ class SingleDiffusionProcessResetting(StochasticProcess):
                           ymin=min(coords[3][index], self.xr),
                           ymax=max(coords[3][index], self.xr),
                           color='r')
+        ax.set_title(f"Diffusion Process with non-constant resetting: D = {self.D}")
+        ax.set_ylabel("position")
+        ax.set_xlabel("time")
 
     def first_passage_simulation_constant(self, target, dt=0.1, tmax=100):
         '''
