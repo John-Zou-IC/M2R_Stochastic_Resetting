@@ -80,6 +80,9 @@ class SingleDiffusionProcess(StochasticProcess):
         coords = self.simulate(t, dt)
         fig, ax = figure_generation_one(coords, f1, f2)
         ax.plot(coords[0], coords[1])
+        ax.set_title(f"Diffusion Process: D = {self.D}")
+        ax.set_ylabel("position")
+        ax.set_xlabel("time")
 
     def first_passage_simulation_constant(self, target, dt=0.1, tmax=100):
         '''
@@ -203,6 +206,9 @@ class SingleDiffusionProcessConstantR(StochasticProcess):
                           ymin=min(coords[3][index], self.xr),
                           ymax=max(coords[3][index], self.xr),
                           color='r')
+        ax.set_title(f"Diffusion Process with Resetting: D = {self.D}, r = {self.r}")
+        ax.set_ylabel("position")
+        ax.set_xlabel("time")
 
     def NESS(self, n, t, dt):
         vals = np.full(n, self.x0, dtype=np.float64)
@@ -219,7 +225,8 @@ class SingleDiffusionProcessConstantR(StochasticProcess):
     def NESS_Plot(self, n, t, dt, f1=3.5, f2=2.5, bins=20):
         vals = self.NESS(n, t, dt)
         fig, ax = plt.subplots(1, 1, figsize=(f1, f2))
-        ax.hist(vals, bins=bins, density=True)
+        ax.hist(vals, bins=bins, density=True, label="Simulation Result")
+        ax.set_title(f"NESS Approximation: D = {self.D}, r = {self.r}")
 
     def first_passage_simulation_constant(self, target, dt=0.1, tmax=100):
         '''
